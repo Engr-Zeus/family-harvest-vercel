@@ -69,14 +69,22 @@ async function readDataFromGitHub() {
     }
 
     try {
+        console.log('Reading data from GitHub repository:', GITHUB_REPO);
         const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/calendar-data.json`;
+        console.log('GitHub API URL:', url);
+        
         const response = await makeGitHubRequest(url, 'GET');
+        console.log('GitHub API response status:', response.status);
         
         if (response.status === 200) {
             const content = Buffer.from(response.data.content, 'base64').toString('utf8');
+            console.log('Successfully read data from GitHub');
             return JSON.parse(content);
-        } else {
+        } else if (response.status === 404) {
             console.log('No existing data file found, starting fresh');
+            return {};
+        } else {
+            console.error('GitHub API error:', response.status, response.data);
             return {};
         }
     } catch (error) {
@@ -93,6 +101,8 @@ async function writeDataToGitHub(data) {
     }
 
     try {
+        console.log('Writing data to GitHub repository:', GITHUB_REPO);
+        
         // First, get the current file SHA (if it exists)
         const getFileUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/calendar-data.json`;
         const getFileResponse = await makeGitHubRequest(getFileUrl, 'GET');
@@ -100,6 +110,9 @@ async function writeDataToGitHub(data) {
         let sha = null;
         if (getFileResponse.status === 200) {
             sha = getFileResponse.data.sha;
+            console.log('Found existing file, will update');
+        } else {
+            console.log('No existing file, will create new');
         }
 
         // Prepare the file content
@@ -124,7 +137,7 @@ async function writeDataToGitHub(data) {
             console.log('✅ Calendar data written to GitHub successfully');
             return true;
         } else {
-            console.error('❌ Failed to write calendar data to GitHub:', writeResponse.status);
+            console.error('❌ Failed to write calendar data to GitHub:', writeResponse.status, writeResponse.data);
             return false;
         }
     } catch (error) {
@@ -147,10 +160,13 @@ module.exports = async (req, res) => {
 
     if (req.method === 'GET') {
         try {
+            console.log('Calendar API called - reading data from GitHub');
             const data = await readDataFromGitHub();
+            console.log('Data retrieved:', Object.keys(data).length, 'dates');
             res.json(data);
         } catch (error) {
-            res.status(500).json({ error: 'Failed to read calendar data' });
+            console.error('Error in calendar API:', error);
+            res.status(500).json({ error: 'Failed to read calendar data', details: error.message });
         }
     } else {
         res.status(405).json({ error: 'Method not allowed' });

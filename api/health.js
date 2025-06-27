@@ -11,11 +11,15 @@ module.exports = async (req, res) => {
     }
 
     if (req.method === 'GET') {
+        const githubRepo = process.env.GITHUB_REPO || 'Engr-Zeus/family-harvest-vercel';
+        const githubBranch = process.env.GITHUB_BRANCH || 'main';
+        
         res.json({ 
             status: 'OK', 
             timestamp: new Date().toISOString(),
             github_configured: !!process.env.GITHUB_TOKEN,
-            github_repo: process.env.GITHUB_REPO || 'not configured',
+            github_repo: githubRepo,
+            github_branch: githubBranch,
             environment: process.env.NODE_ENV || 'development',
             platform: 'Vercel'
         });
