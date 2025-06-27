@@ -5,9 +5,11 @@ const https = require('https');
 // Data file path - use /tmp for Vercel serverless functions
 const DATA_FILE = '/tmp/calendar-data.json';
 
-// GitHub configuration
+// GitHub configuration - clean up repository format
+let GITHUB_REPO = process.env.GITHUB_REPO || 'Engr-Zeus/family-harvest-vercel';
+// Remove URL and .git extension if present
+GITHUB_REPO = GITHUB_REPO.replace('https://github.com/', '').replace('.git', '');
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const GITHUB_REPO = process.env.GITHUB_REPO || 'Engr-Zeus/family-harvest-vercel';
 const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main';
 
 // Helper function to convert JSON to CSV
@@ -101,14 +103,22 @@ async function readDataFromGitHub() {
     }
 
     try {
+        console.log('Reading data from GitHub repository:', GITHUB_REPO);
         const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/calendar-data.json`;
+        console.log('GitHub API URL:', url);
+        
         const response = await makeGitHubRequest(url, 'GET');
+        console.log('GitHub API response status:', response.status);
         
         if (response.status === 200) {
             const content = Buffer.from(response.data.content, 'base64').toString('utf8');
+            console.log('Successfully read data from GitHub');
             return JSON.parse(content);
-        } else {
+        } else if (response.status === 404) {
             console.log('No existing data file found, starting fresh');
+            return {};
+        } else {
+            console.error('GitHub API error:', response.status, response.data);
             return {};
         }
     } catch (error) {
@@ -125,6 +135,8 @@ async function writeDataToGitHub(data) {
     }
 
     try {
+        console.log('Writing data to GitHub repository:', GITHUB_REPO);
+        
         // First, get the current file SHA (if it exists)
         const getFileUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/calendar-data.json`;
         const getFileResponse = await makeGitHubRequest(getFileUrl, 'GET');
@@ -132,6 +144,9 @@ async function writeDataToGitHub(data) {
         let sha = null;
         if (getFileResponse.status === 200) {
             sha = getFileResponse.data.sha;
+            console.log('Found existing file, will update');
+        } else {
+            console.log('No existing file, will create new');
         }
 
         // Prepare the file content
@@ -156,7 +171,7 @@ async function writeDataToGitHub(data) {
             console.log('✅ Calendar data written to GitHub successfully');
             return true;
         } else {
-            console.error('❌ Failed to write calendar data to GitHub:', writeResponse.status);
+            console.error('❌ Failed to write calendar data to GitHub:', writeResponse.status, writeResponse.data);
             return false;
         }
     } catch (error) {

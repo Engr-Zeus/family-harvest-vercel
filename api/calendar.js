@@ -5,9 +5,11 @@ const https = require('https');
 // Data file path - use /tmp for Vercel serverless functions
 const DATA_FILE = '/tmp/calendar-data.json';
 
-// GitHub configuration
+// GitHub configuration - clean up repository format
+let GITHUB_REPO = process.env.GITHUB_REPO || 'Engr-Zeus/family-harvest-vercel';
+// Remove URL and .git extension if present
+GITHUB_REPO = GITHUB_REPO.replace('https://github.com/', '').replace('.git', '');
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const GITHUB_REPO = process.env.GITHUB_REPO || 'Engr-Zeus/family-harvest-vercel';
 const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main';
 
 // Helper function to make GitHub API requests
