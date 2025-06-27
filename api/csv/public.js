@@ -1,8 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 
-// Data file path
-const DATA_FILE = path.join(process.cwd(), 'calendar-data.json');
+// Data file path - use /tmp for Vercel serverless functions
+const DATA_FILE = '/tmp/calendar-data.json';
 
 // Helper function to convert JSON to CSV
 function jsonToCSV(data, includePhone = true) {
@@ -26,7 +26,7 @@ function jsonToCSV(data, includePhone = true) {
             });
             
             if (includePhone) {
-                csvRows.push(`"${date}","${attendee.name}","${attendee.phone}","${attendee.mass}","${attendee.addedAt}"`);
+                csvRows.push(`"${date}","${attendee.name}","${attendee.phone}","${attendee.mass}"`);
             } else {
                 csvRows.push(`"${date}","${attendee.name}","${attendee.mass}"`);
             }
@@ -50,7 +50,10 @@ module.exports = async (req, res) => {
 
     if (req.method === 'GET') {
         try {
-            const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+            let data = {};
+            if (fs.existsSync(DATA_FILE)) {
+                data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+            }
             const csvContent = jsonToCSV(data, false);
             
             res.setHeader('Content-Type', 'text/csv');

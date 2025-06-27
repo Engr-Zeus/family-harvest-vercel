@@ -1,8 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 
-// Data file path
-const DATA_FILE = path.join(process.cwd(), 'calendar-data.json');
+// Data file path - use /tmp for Vercel serverless functions
+const DATA_FILE = '/tmp/calendar-data.json';
 
 module.exports = async (req, res) => {
     // Enable CORS
@@ -19,7 +19,10 @@ module.exports = async (req, res) => {
     if (req.method === 'GET') {
         try {
             const { dateKey } = req.query;
-            const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+            let data = {};
+            if (fs.existsSync(DATA_FILE)) {
+                data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+            }
             
             const attendees = data[dateKey] || [];
             res.json(attendees);

@@ -1,8 +1,8 @@
 const fs = require('fs');
 const path = require('path');
 
-// Data file path
-const DATA_FILE = path.join(process.cwd(), 'calendar-data.json');
+// Data file path - use /tmp for Vercel serverless functions
+const DATA_FILE = '/tmp/calendar-data.json';
 
 module.exports = async (req, res) => {
     // Enable CORS
@@ -18,7 +18,12 @@ module.exports = async (req, res) => {
 
     if (req.method === 'GET') {
         try {
-            const data = fs.readFileSync(DATA_FILE, 'utf8');
+            let data = {};
+            if (fs.existsSync(DATA_FILE)) {
+                data = fs.readFileSync(DATA_FILE, 'utf8');
+            } else {
+                data = JSON.stringify({});
+            }
             res.setHeader('Content-Type', 'application/json');
             res.setHeader('Content-Disposition', `attachment; filename="thanksgiving-calendar-backend-${new Date().toISOString().split('T')[0]}.json"`);
             res.send(data);

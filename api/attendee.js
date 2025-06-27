@@ -2,8 +2,8 @@ const fs = require('fs');
 const path = require('path');
 const https = require('https');
 
-// Data file path
-const DATA_FILE = path.join(process.cwd(), 'calendar-data.json');
+// Data file path - use /tmp for Vercel serverless functions
+const DATA_FILE = '/tmp/calendar-data.json';
 
 // GitHub configuration
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
@@ -166,7 +166,16 @@ module.exports = async (req, res) => {
                 return res.status(400).json({ error: 'Missing required fields' });
             }
             
-            const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+            // Read existing data or initialize empty object
+            let data = {};
+            try {
+                if (fs.existsSync(DATA_FILE)) {
+                    data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+                }
+            } catch (error) {
+                console.log('No existing data file, starting fresh');
+                data = {};
+            }
             
             if (!data[dateKey]) {
                 data[dateKey] = [];
@@ -184,6 +193,7 @@ module.exports = async (req, res) => {
                 addedAt: new Date().toISOString()
             });
             
+            // Write to temporary file
             fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
             
             // Generate CSV content
@@ -209,7 +219,7 @@ module.exports = async (req, res) => {
             });
         } catch (error) {
             console.error('Error adding attendee:', error);
-            res.status(500).json({ error: 'Failed to add attendee' });
+            res.status(500).json({ error: 'Failed to add attendee', details: error.message });
         }
     } else {
         res.status(405).json({ error: 'Method not allowed' });
