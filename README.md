@@ -87,10 +87,13 @@ GET  /api/csv/public        - Download public CSV
 Family Thanksgiving/
 ├── api/                    # Vercel serverless functions
 │   ├── calendar.js        # GET /api/calendar
+│   ├── calendar/
 │   │   └── public.js      # GET /api/calendar/public
 │   ├── attendee.js        # POST /api/attendee
+│   ├── attendees/
 │   │   └── [dateKey].js   # GET /api/attendees/:dateKey
 │   ├── health.js          # GET /api/health
+│   ├── download/
 │   │   ├── backend.js     # GET /api/download/backend
 │   │   └── public.js      # GET /api/download/public
 │   └── csv/
@@ -105,6 +108,7 @@ Family Thanksgiving/
 ├── .gitignore              # Git ignore rules
 ├── README.md               # This file
 ├── VERCEL-DEPLOYMENT.md    # Vercel deployment guide
+├── GITHUB-SETUP-VERCEL.md  # GitHub integration guide
 ├── BACKEND-SETUP.md        # Detailed backend setup guide
 ├── sample-backend-data.json # Example backend data
 ├── sample-public-data.json # Example public data
@@ -142,7 +146,6 @@ Modify the `generateSundays()` function in `script.js` to change the date range.
 
 ### Full Stack (Frontend + Backend)
 - **Vercel** (Recommended): `vercel --prod` - Serverless deployment
-- **Heroku**: `git push heroku main`
 - **Railway**: Connect GitHub repository
 - **DigitalOcean**: Deploy Node.js app
 - **AWS**: Deploy to EC2 or Lambda
@@ -179,10 +182,11 @@ This project is open source and available under the [MIT License](LICENSE).
 
 For issues or questions:
 1. Check the [VERCEL-DEPLOYMENT.md](VERCEL-DEPLOYMENT.md) for Vercel deployment
-2. Check the [BACKEND-SETUP.md](BACKEND-SETUP.md) for detailed setup instructions
-3. Review the browser console for errors
-4. Ensure all dependencies are installed (for backend)
-5. Verify Node.js version 18+ is installed (for backend)
+2. Check the [GITHUB-SETUP-VERCEL.md](GITHUB-SETUP-VERCEL.md) for GitHub integration
+3. Check the [BACKEND-SETUP.md](BACKEND-SETUP.md) for detailed setup instructions
+4. Review the browser console for errors
+5. Ensure all dependencies are installed (for backend)
+6. Verify Node.js version 18+ is installed (for backend)
 
 ---
 
