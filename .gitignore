@@ -102,3 +102,4 @@ temp/
 
 # Data files (optional - remove if you want to track them)
 calendar-data.json 
+.vercel

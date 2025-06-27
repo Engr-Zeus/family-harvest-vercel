@@ -12,6 +12,7 @@ A beautiful, interactive web application for coordinating family Thanksgiving ce
 - **Beautiful UI**: Modern, responsive design with Thanksgiving theme
 - **Backend Ready**: Full Node.js backend with CSV export functionality
 - **Mobile Friendly**: Works perfectly on phones and tablets
+- **Vercel Ready**: Optimized for serverless deployment on Vercel
 
 ## 🚀 Quick Start
 
@@ -25,6 +26,13 @@ A beautiful, interactive web application for coordinating family Thanksgiving ce
 2. Install dependencies: `npm install`
 3. Start the server: `npm start`
 4. Visit `http://localhost:3000`
+
+### Deploy to Vercel (Recommended)
+1. Install Vercel CLI: `npm install -g vercel`
+2. Login to Vercel: `vercel login`
+3. Deploy: `vercel --prod`
+4. Set environment variables in Vercel dashboard
+5. See [VERCEL-DEPLOYMENT.md](VERCEL-DEPLOYMENT.md) for detailed instructions
 
 ## 📱 How to Use
 
@@ -43,24 +51,26 @@ A beautiful, interactive web application for coordinating family Thanksgiving ce
 
 ### Backend (Optional)
 - **Node.js/Express**: RESTful API server
+- **Vercel Serverless**: Optimized for Vercel deployment
 - **CSV Export**: Automatic CSV file generation with every form submission
 - **Data Persistence**: JSON and CSV files stored on server
 - **API Endpoints**: Full CRUD operations for calendar data
+- **GitHub Integration**: Automatic CSV uploads to GitHub repository
 
 ## 📊 Backend API Endpoints
 
 When using the backend server:
 
 ```
+GET  /api/health            - Health check
 GET  /api/calendar          - Get all data (with phone numbers)
 GET  /api/calendar/public   - Get public data (no phone numbers)
 POST /api/attendee          - Add new attendee
 GET  /api/attendees/:date   - Get attendees for specific date
+GET  /api/download/backend  - Download backend JSON
+GET  /api/download/public   - Download public JSON
 GET  /api/csv/backend       - Download backend CSV
 GET  /api/csv/public        - Download public CSV
-POST /api/csv/write/backend - Write backend CSV to server
-POST /api/csv/write/public  - Write public CSV to server
-GET  /api/csv/files         - List all CSV files
 ```
 
 ## 🎨 Design Features
@@ -75,13 +85,26 @@ GET  /api/csv/files         - List all CSV files
 
 ```
 Family Thanksgiving/
+├── api/                    # Vercel serverless functions
+│   ├── calendar.js        # GET /api/calendar
+│   │   └── public.js      # GET /api/calendar/public
+│   ├── attendee.js        # POST /api/attendee
+│   │   └── [dateKey].js   # GET /api/attendees/:dateKey
+│   ├── health.js          # GET /api/health
+│   │   ├── backend.js     # GET /api/download/backend
+│   │   └── public.js      # GET /api/download/public
+│   └── csv/
+│       ├── backend.js     # GET /api/csv/backend
+│       └── public.js      # GET /api/csv/public
 ├── index.html              # Main HTML file
 ├── styles.css              # CSS styles and animations
 ├── script.js               # Frontend JavaScript
-├── server.js               # Backend server (Node.js/Express)
+├── server.js               # Backend server (Node.js/Express) - for local development
 ├── package.json            # Dependencies and scripts
+├── vercel.json             # Vercel configuration
 ├── .gitignore              # Git ignore rules
 ├── README.md               # This file
+├── VERCEL-DEPLOYMENT.md    # Vercel deployment guide
 ├── BACKEND-SETUP.md        # Detailed backend setup guide
 ├── sample-backend-data.json # Example backend data
 ├── sample-public-data.json # Example public data
@@ -118,9 +141,9 @@ Modify the `generateSundays()` function in `script.js` to change the date range.
 - **Any Web Host**: Upload HTML, CSS, and JS files
 
 ### Full Stack (Frontend + Backend)
+- **Vercel** (Recommended): `vercel --prod` - Serverless deployment
 - **Heroku**: `git push heroku main`
 - **Railway**: Connect GitHub repository
-- **Vercel**: Deploy with serverless functions
 - **DigitalOcean**: Deploy Node.js app
 - **AWS**: Deploy to EC2 or Lambda
 
@@ -131,6 +154,7 @@ Modify the `generateSundays()` function in `script.js` to change the date range.
 - **Server Storage**: Data stored in JSON/CSV files on server (backend mode)
 - **No Tracking**: No analytics or external tracking
 - **HTTPS Ready**: Configure for production deployment
+- **Environment Variables**: Secure storage of API keys and tokens
 
 ## 🎯 Perfect For
 
@@ -154,10 +178,11 @@ This project is open source and available under the [MIT License](LICENSE).
 ## 🆘 Support
 
 For issues or questions:
-1. Check the [BACKEND-SETUP.md](BACKEND-SETUP.md) for detailed setup instructions
-2. Review the browser console for errors
-3. Ensure all dependencies are installed (for backend)
-4. Verify Node.js version 14+ is installed (for backend)
+1. Check the [VERCEL-DEPLOYMENT.md](VERCEL-DEPLOYMENT.md) for Vercel deployment
+2. Check the [BACKEND-SETUP.md](BACKEND-SETUP.md) for detailed setup instructions
+3. Review the browser console for errors
+4. Ensure all dependencies are installed (for backend)
+5. Verify Node.js version 18+ is installed (for backend)
 
 ---
 

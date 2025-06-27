@@ -1,27 +1,32 @@
 {
   "name": "thanksgiving-calendar-backend",
   "version": "1.0.0",
-  "description": "Backend server for Family Thanksgiving Calendar",
+  "description": "Backend server for Family Thanksgiving Calendar - Vercel Deployment",
   "main": "server.js",
   "engines": {
     "node": "18.x"
   },
   "scripts": {
     "start": "node server.js",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "vercel-build": "echo 'Build completed'",
+    "vercel-dev": "node server.js"
   },
   "dependencies": {
     "express": "^4.18.2",
     "cors": "^2.8.5"
   },
   "devDependencies": {
-    "nodemon": "^3.0.1"
+    "nodemon": "^3.0.1",
+    "vercel": "^32.0.0"
   },
   "keywords": [
     "thanksgiving",
     "calendar",
     "family",
-    "scheduling"
+    "scheduling",
+    "vercel",
+    "serverless"
   ],
   "author": "Your Name",
   "license": "MIT"
