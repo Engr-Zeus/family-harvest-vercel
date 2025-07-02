@@ -643,4 +643,68 @@ body {
     .welcome-message p {
         font-size: 1rem;
     }
+}
+
+/* Persistent Admin Panel Styles */
+.admin-panel {
+    position: fixed;
+    bottom: 30px;
+    right: 30px;
+    background: rgba(255,255,255,0.97);
+    border: 2px solid #8b5cf6;
+    border-radius: 14px;
+    box-shadow: 0 8px 32px rgba(139,92,246,0.15);
+    padding: 22px 24px 18px 24px;
+    z-index: 2000;
+    min-width: 260px;
+    max-width: 320px;
+    font-size: 1rem;
+    color: #1e293b;
+}
+.admin-panel h3 {
+    margin-top: 0;
+    margin-bottom: 16px;
+    font-size: 1.2rem;
+    color: #8b5cf6;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+}
+.admin-btn {
+    width: 100%;
+    margin-bottom: 10px;
+    padding: 10px 0;
+    background: linear-gradient(90deg, #8b5cf6 60%, #a855f7 100%);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s, box-shadow 0.2s;
+    box-shadow: 0 2px 8px rgba(139,92,246,0.08);
+}
+.admin-btn:hover:not(:disabled) {
+    background: linear-gradient(90deg, #a855f7 60%, #8b5cf6 100%);
+    box-shadow: 0 4px 16px rgba(139,92,246,0.15);
+}
+.admin-btn:disabled {
+    background: #e0e0e0;
+    color: #aaa;
+    cursor: not-allowed;
+}
+#adminStatus {
+    min-height: 18px;
+    color: #1e40af;
+    font-weight: 500;
+    margin-top: 8px;
+}
+@media (max-width: 600px) {
+    .admin-panel {
+        right: 10px;
+        left: 10px;
+        bottom: 10px;
+        min-width: unset;
+        max-width: unset;
+        padding: 14px 8px 10px 8px;
+    }
 } 

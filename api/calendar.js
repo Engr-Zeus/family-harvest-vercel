@@ -63,35 +63,53 @@ function makeGitHubRequest(url, method = 'GET', body = null) {
     });
 }
 
-// Helper function to read data from GitHub
-async function readDataFromGitHub() {
-    if (!GITHUB_TOKEN) {
-        console.log('GitHub token not configured, using empty data');
-        return {};
+// Helper function to read data from cache
+function readDataFromCache() {
+    try {
+        if (fs.existsSync(DATA_FILE)) {
+            const cached = fs.readFileSync(DATA_FILE, 'utf8');
+            return JSON.parse(cached);
+        }
+    } catch (err) {
+        console.error('Error reading from cache:', err.message);
     }
+    return {};
+}
 
+// Helper function to read data from GitHub
+async function readDataFromGitHubWithCache() {
+    if (!GITHUB_TOKEN) {
+        console.log('GitHub token not configured, using cache or empty data');
+        return readDataFromCache();
+    }
     try {
         console.log('Reading data from GitHub repository:', GITHUB_REPO);
         const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/calendar-data.json`;
         console.log('GitHub API URL:', url);
-        
         const response = await makeGitHubRequest(url, 'GET');
         console.log('GitHub API response status:', response.status);
-        
         if (response.status === 200) {
             const content = Buffer.from(response.data.content, 'base64').toString('utf8');
             console.log('Successfully read data from GitHub');
+            // Update cache
+            try {
+                fs.writeFileSync(DATA_FILE, content, 'utf8');
+            } catch (err) {
+                console.error('Error writing to cache:', err.message);
+            }
             return JSON.parse(content);
         } else if (response.status === 404) {
             console.log('No existing data file found, starting fresh');
             return {};
         } else {
             console.error('GitHub API error:', response.status, response.data);
-            return {};
+            // Try cache
+            return readDataFromCache();
         }
     } catch (error) {
         console.error('Error reading from GitHub:', error.message);
-        return {};
+        // Try cache
+        return readDataFromCache();
     }
 }
 
@@ -162,8 +180,8 @@ module.exports = async (req, res) => {
 
     if (req.method === 'GET') {
         try {
-            console.log('Calendar API called - reading data from GitHub');
-            const data = await readDataFromGitHub();
+            console.log('Calendar API called - reading data from GitHub (with cache fallback)');
+            const data = await readDataFromGitHubWithCache();
             console.log('Data retrieved:', Object.keys(data).length, 'dates');
             res.json(data);
         } catch (error) {

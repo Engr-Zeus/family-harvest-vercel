@@ -414,34 +414,49 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.calendarApp.generateCalendar();
     }
     
-    // Add a small debug panel for development (can be removed in production)
-    if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-        const debugPanel = document.createElement('div');
-        debugPanel.style.cssText = `
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            background: rgba(0,0,0,0.8);
-            color: white;
-            padding: 15px;
-            border-radius: 8px;
-            font-size: 12px;
-            z-index: 1000;
-            min-width: 200px;
-        `;
-        debugPanel.innerHTML = `
-            <div style="margin-bottom: 10px; font-weight: bold;">Admin Panel</div>
-            <div style="margin-bottom: 8px;">
-                <button onclick="localStorage.clear(); location.reload();" style="width: 100%; margin-bottom: 5px; padding: 5px; background: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer;">Clear All Data</button>
-            </div>
-            <div style="margin-bottom: 8px;">
-                <button onclick="window.calendarApp.exportBackendData();" style="width: 100%; margin-bottom: 5px; padding: 5px; background: #28a745; color: white; border: none; border-radius: 3px; cursor: pointer;">Export Backend Data</button>
-            </div>
-            <div style="margin-bottom: 8px;">
-                <button onclick="window.calendarApp.exportPublicData();" style="width: 100%; margin-bottom: 5px; padding: 5px; background: #17a2b8; color: white; border: none; border-radius: 3px; cursor: pointer;">Export Public Data</button>
-            </div>
-        `;
-        document.body.appendChild(debugPanel);
+    // Persistent Admin Panel logic
+    const reloadBtn = document.getElementById('reloadCalendarBtn');
+    const backendCsvBtn = document.getElementById('downloadBackendCsvBtn');
+    const publicCsvBtn = document.getElementById('downloadPublicCsvBtn');
+    const adminStatus = document.getElementById('adminStatus');
+
+    if (reloadBtn) {
+        reloadBtn.addEventListener('click', async () => {
+            reloadBtn.disabled = true;
+            reloadBtn.textContent = 'Reloading...';
+            adminStatus.textContent = '';
+            try {
+                const response = await fetch('/api/calendar/reload', { method: 'POST' });
+                const result = await response.json();
+                if (result.success) {
+                    reloadBtn.textContent = 'Reloaded!';
+                    adminStatus.textContent = 'Calendar reloaded from GitHub.';
+                    if (window.calendarApp.fetchCalendarData) {
+                        await window.calendarApp.fetchCalendarData();
+                        window.calendarApp.generateCalendar();
+                    }
+                    setTimeout(() => { reloadBtn.textContent = 'Reload Calendar from GitHub'; reloadBtn.disabled = false; adminStatus.textContent = ''; }, 2000);
+                } else {
+                    reloadBtn.textContent = 'Reload Failed';
+                    adminStatus.textContent = 'Reload failed: ' + (result.error || 'Unknown error');
+                    setTimeout(() => { reloadBtn.textContent = 'Reload Calendar from GitHub'; reloadBtn.disabled = false; adminStatus.textContent = ''; }, 2000);
+                }
+            } catch (err) {
+                reloadBtn.textContent = 'Reload Error';
+                adminStatus.textContent = 'Reload error: ' + err.message;
+                setTimeout(() => { reloadBtn.textContent = 'Reload Calendar from GitHub'; reloadBtn.disabled = false; adminStatus.textContent = ''; }, 2000);
+            }
+        });
+    }
+    if (backendCsvBtn) {
+        backendCsvBtn.addEventListener('click', () => {
+            window.open('/api/csv/backend', '_blank');
+        });
+    }
+    if (publicCsvBtn) {
+        publicCsvBtn.addEventListener('click', () => {
+            window.open('/api/csv/public', '_blank');
+        });
     }
 });
 
