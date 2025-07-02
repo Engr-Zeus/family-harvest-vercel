@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Family Thanksgiving Calendar</title>
+    <link rel="icon" type="image/png" href="SJMVIcon.png">
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            background: #f8fafc;
+        }
+        .admin-center {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+        }
+        .admin-panel {
+            position: static;
+            margin: 0 auto;
+            box-shadow: 0 8px 32px rgba(139,92,246,0.10);
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-center">
+        <div id="adminPanel" class="admin-panel">
+            <h2>Admin Panel</h2>
+            <div id="adminAuth" style="margin-bottom: 18px;">
+                <input type="password" id="adminPassword" placeholder="Enter admin password" class="admin-btn" style="width: 100%; margin-bottom: 10px; color: #333; background: #fff; border: 1px solid #8b5cf6;">
+                <button id="adminLoginBtn" class="admin-btn" style="margin-bottom: 0;">Login</button>
+                <div id="adminAuthStatus" style="margin-top: 8px; color: #ef4444;"></div>
+            </div>
+            <div id="adminControls" style="display:none;">
+                <button id="reloadCalendarBtn" class="admin-btn">Reload Calendar from GitHub</button>
+                <button id="downloadBackendCsvBtn" class="admin-btn">Download Backend CSV</button>
+                <button id="downloadPublicCsvBtn" class="admin-btn">Download Public CSV</button>
+                <div id="adminStatus" style="margin-top:10px;font-size:0.95em;"></div>
+            </div>
+        </div>
+    </div>
+    <script>
+    // Simple password protection (client-side only)
+    const ADMIN_PASSWORD = 'thanksgiving2025'; // Change this to your desired password
+    const adminAuth = document.getElementById('adminAuth');
+    const adminControls = document.getElementById('adminControls');
+    const adminLoginBtn = document.getElementById('adminLoginBtn');
+    const adminPassword = document.getElementById('adminPassword');
+    const adminAuthStatus = document.getElementById('adminAuthStatus');
+    adminLoginBtn.addEventListener('click', () => {
+        if (adminPassword.value === ADMIN_PASSWORD) {
+            adminAuth.style.display = 'none';
+            adminControls.style.display = 'block';
+        } else {
+            adminAuthStatus.textContent = 'Incorrect password.';
+        }
+    });
+    adminPassword.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') adminLoginBtn.click();
+    });
+
+    // Admin controls logic
+    const reloadBtn = document.getElementById('reloadCalendarBtn');
+    const backendCsvBtn = document.getElementById('downloadBackendCsvBtn');
+    const publicCsvBtn = document.getElementById('downloadPublicCsvBtn');
+    const adminStatus = document.getElementById('adminStatus');
+
+    if (reloadBtn) {
+        reloadBtn.addEventListener('click', async () => {
+            reloadBtn.disabled = true;
+            reloadBtn.textContent = 'Reloading...';
+            adminStatus.textContent = '';
+            try {
+                const response = await fetch('/api/calendar/reload', { method: 'POST' });
+                const result = await response.json();
+                if (result.success) {
+                    reloadBtn.textContent = 'Reloaded!';
+                    adminStatus.textContent = 'Calendar reloaded from GitHub.';
+                    setTimeout(() => { reloadBtn.textContent = 'Reload Calendar from GitHub'; reloadBtn.disabled = false; adminStatus.textContent = ''; }, 2000);
+                } else {
+                    reloadBtn.textContent = 'Reload Failed';
+                    adminStatus.textContent = 'Reload failed: ' + (result.error || 'Unknown error');
+                    setTimeout(() => { reloadBtn.textContent = 'Reload Calendar from GitHub'; reloadBtn.disabled = false; adminStatus.textContent = ''; }, 2000);
+                }
+            } catch (err) {
+                reloadBtn.textContent = 'Reload Error';
+                adminStatus.textContent = 'Reload error: ' + err.message;
+                setTimeout(() => { reloadBtn.textContent = 'Reload Calendar from GitHub'; reloadBtn.disabled = false; adminStatus.textContent = ''; }, 2000);
+            }
+        });
+    }
+    if (backendCsvBtn) {
+        backendCsvBtn.addEventListener('click', () => {
+            window.open('/api/csv/backend', '_blank');
+        });
+    }
+    if (publicCsvBtn) {
+        publicCsvBtn.addEventListener('click', () => {
+            window.open('/api/csv/public', '_blank');
+        });
+    }
+    </script>
+</body>
+</html> 
