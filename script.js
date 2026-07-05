@@ -248,12 +248,42 @@ class ThanksgivingCalendar {
         }
     }
 
+    mergeCalendarData(remoteData) {
+        const merged = {};
+        const localData = this.calendarData || {};
+        const remoteEntries = remoteData && typeof remoteData === 'object' && !Array.isArray(remoteData) ? remoteData : {};
+        const allDates = new Set([...Object.keys(localData), ...Object.keys(remoteEntries)]);
+
+        allDates.forEach((dateKey) => {
+            const localAttendees = Array.isArray(localData[dateKey]) ? localData[dateKey] : [];
+            const remoteAttendees = Array.isArray(remoteEntries[dateKey]) ? remoteEntries[dateKey] : [];
+            const mergedAttendees = [...localAttendees];
+            const seen = new Set(mergedAttendees.map(attendee => `${attendee.name || ''}|${attendee.mass || ''}|${attendee.phone || ''}`));
+
+            remoteAttendees.forEach((attendee) => {
+                const key = `${attendee.name || ''}|${attendee.mass || ''}|${attendee.phone || ''}`;
+                if (!seen.has(key)) {
+                    mergedAttendees.push(attendee);
+                    seen.add(key);
+                }
+            });
+
+            if (mergedAttendees.length > 0) {
+                merged[dateKey] = mergedAttendees;
+            }
+        });
+
+        return merged;
+    }
+
     // Fetch calendar data from backend - ENABLED
     async fetchCalendarData() {
         try {
             const response = await fetch('/api/calendar');
             if (response.ok) {
-                this.calendarData = await response.json();
+                const remoteData = await response.json();
+                this.calendarData = this.mergeCalendarData(remoteData);
+                this.saveCalendarData();
             }
         } catch (error) {
             console.error('Failed to fetch from backend:', error);
