@@ -38,8 +38,18 @@ const DATA_FILE = path.join(__dirname, 'calendar-data.json');
 const TMP_DATA_FILE = path.join(os.tmpdir(), 'calendar-data.json');
 
 // GitHub configuration
+function normalizeGitHubRepo(repo) {
+    return String(repo || 'your-username/your-repo-name')
+        .trim()
+        .replace(/^https?:\/\/github\.com\//i, '')
+        .replace(/^https?:\/\/www\.github\.com\//i, '')
+        .replace(/\.git$/i, '')
+        .replace(/\/+$/, '')
+        .replace(/^\//, '');
+}
+
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const GITHUB_REPO = process.env.GITHUB_REPO || 'your-username/your-repo-name';
+const GITHUB_REPO = normalizeGitHubRepo(process.env.GITHUB_REPO || 'your-username/your-repo-name');
 const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main';
 
 // Initialize data file if it doesn't exist
@@ -174,8 +184,9 @@ function makeGitHubRequest(url, method = 'GET', body = null) {
             method: method,
             headers: {
                 'User-Agent': 'Thanksgiving-Calendar-App',
-                'Authorization': `token ${GITHUB_TOKEN}`,
-                'Accept': 'application/vnd.github.v3+json'
+                'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'X-GitHub-Api-Version': '2022-11-28'
             }
         };
 

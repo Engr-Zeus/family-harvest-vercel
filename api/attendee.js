@@ -9,13 +9,17 @@ const TMP_DATA_FILE = path.join(os.tmpdir(), 'calendar-data.json');
 const FALLBACK_DATA_FILE = path.join(__dirname, '..', 'calendar-data.json');
 
 // GitHub configuration - clean up repository format
-let GITHUB_REPO = process.env.GITHUB_REPO || 'Engr-Zeus/family-harvest-vercel';
-// Normalize repo format from either 'user/repo' or 'https://github.com/user/repo.git'
-GITHUB_REPO = GITHUB_REPO
-    .replace('https://github.com/', '')
-    .replace('http://github.com/', '')
-    .replace(/\.git$/i, '')
-    .replace(/^\//, '');
+function normalizeGitHubRepo(repo) {
+    return String(repo || 'Engr-Zeus/family-harvest-vercel')
+        .trim()
+        .replace(/^https?:\/\/github\.com\//i, '')
+        .replace(/^https?:\/\/www\.github\.com\//i, '')
+        .replace(/\.git$/i, '')
+        .replace(/\/+$/, '')
+        .replace(/^\//, '');
+}
+
+let GITHUB_REPO = normalizeGitHubRepo(process.env.GITHUB_REPO || 'Engr-Zeus/family-harvest-vercel');
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main';
 
@@ -116,8 +120,9 @@ function makeGitHubRequest(url, method = 'GET', body = null) {
             method: method,
             headers: {
                 'User-Agent': 'Thanksgiving-Calendar-App',
-                'Authorization': `token ${GITHUB_TOKEN}`,
-                'Accept': 'application/vnd.github.v3+json'
+                'Authorization': `Bearer ${GITHUB_TOKEN}`,
+                'Accept': 'application/vnd.github.v3+json',
+                'X-GitHub-Api-Version': '2022-11-28'
             }
         };
 
@@ -198,7 +203,7 @@ async function readDataFromGitHubWithCache() {
 async function writeDataToGitHub(data) {
     if (!GITHUB_TOKEN) {
         console.log('GitHub token not configured, skipping data write');
-        return false;
+        throw new Error('GitHub token not configured');
     }
 
     try {
@@ -237,13 +242,16 @@ async function writeDataToGitHub(data) {
         if (writeResponse.status === 200 || writeResponse.status === 201) {
             console.log('✅ Calendar data written to GitHub successfully');
             return true;
-        } else {
-            console.error('❌ Failed to write calendar data to GitHub:', writeResponse.status, writeResponse.data);
-            return false;
         }
+
+        const detail = typeof writeResponse.data === 'string'
+            ? writeResponse.data
+            : (writeResponse.data && writeResponse.data.message ? writeResponse.data.message : JSON.stringify(writeResponse.data));
+        console.error('❌ Failed to write calendar data to GitHub:', writeResponse.status, detail);
+        throw new Error(`GitHub calendar write failed (${writeResponse.status}): ${detail}`);
     } catch (error) {
         console.error('❌ Error writing calendar data to GitHub:', error.message);
-        return false;
+        throw error;
     }
 }
 
@@ -251,7 +259,7 @@ async function writeDataToGitHub(data) {
 async function writeCSVToGitHub(csvContent, filename, commitMessage) {
     if (!GITHUB_TOKEN) {
         console.log('GitHub token not configured, skipping GitHub write');
-        return false;
+        throw new Error('GitHub token not configured');
     }
 
     try {
@@ -285,13 +293,16 @@ async function writeCSVToGitHub(csvContent, filename, commitMessage) {
         if (writeResponse.status === 200 || writeResponse.status === 201) {
             console.log(`✅ CSV file ${filename} written to GitHub successfully`);
             return true;
-        } else {
-            console.error(`❌ Failed to write ${filename} to GitHub:`, writeResponse.status);
-            return false;
         }
+
+        const detail = typeof writeResponse.data === 'string'
+            ? writeResponse.data
+            : (writeResponse.data && writeResponse.data.message ? writeResponse.data.message : JSON.stringify(writeResponse.data));
+        console.error(`❌ Failed to write ${filename} to GitHub:`, writeResponse.status, detail);
+        throw new Error(`GitHub CSV write failed (${writeResponse.status}): ${detail}`);
     } catch (error) {
         console.error(`❌ Error writing ${filename} to GitHub:`, error.message);
-        return false;
+        throw error;
     }
 }
 
