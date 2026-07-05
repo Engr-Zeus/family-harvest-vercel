@@ -9,8 +9,12 @@ const FALLBACK_DATA_FILE = path.join(__dirname, '..', 'calendar-data.json');
 
 // GitHub configuration - clean up repository format
 let GITHUB_REPO = process.env.GITHUB_REPO || 'Engr-Zeus/family-harvest-vercel';
-// Remove URL and .git extension if present
-GITHUB_REPO = GITHUB_REPO.replace('https://github.com/', '').replace('.git', '');
+// Normalize repo format from either 'user/repo' or 'https://github.com/user/repo.git'
+GITHUB_REPO = GITHUB_REPO
+    .replace('https://github.com/', '')
+    .replace('http://github.com/', '')
+    .replace(/\.git$/i, '')
+    .replace(/^\//, '');
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main';
 

@@ -9,7 +9,12 @@ const FALLBACK_DATA_FILE = path.join(__dirname, '..', '..', 'calendar-data.json'
 
 // GitHub configuration
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const GITHUB_REPO = process.env.GITHUB_REPO || 'Engr-Zeus/family-harvest-vercel';
+let GITHUB_REPO = process.env.GITHUB_REPO || 'Engr-Zeus/family-harvest-vercel';
+GITHUB_REPO = GITHUB_REPO
+    .replace('https://github.com/', '')
+    .replace('http://github.com/', '')
+    .replace(/\.git$/i, '')
+    .replace(/^\//, '');
 const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main';
 
 // Helper function to make GitHub API requests
