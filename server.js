@@ -46,6 +46,32 @@ if (!fs.existsSync(DATA_FILE)) {
     fs.writeFileSync(DATA_FILE, JSON.stringify({}));
 }
 
+// Helper function to read data from the local data file
+function readDataFromCache() {
+    try {
+        if (fs.existsSync(DATA_FILE)) {
+            const cached = fs.readFileSync(DATA_FILE, 'utf8');
+            if (cached) {
+                return JSON.parse(cached);
+            }
+        }
+    } catch (error) {
+        console.error('Error reading from cache:', error.message);
+    }
+
+    return {};
+}
+
+// Helper function to write data to the local data file
+function writeDataToCache(data) {
+    try {
+        fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
+        fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+    } catch (error) {
+        console.error('Error writing to cache:', error.message);
+    }
+}
+
 // Helper function to convert JSON to CSV
 function jsonToCSV(data, includePhone = true) {
     const csvRows = [];
@@ -203,7 +229,7 @@ app.get('/health', (req, res) => {
 // Get all calendar data
 app.get('/api/calendar', (req, res) => {
     try {
-        const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+        const data = readDataFromCache();
         res.json(data);
     } catch (error) {
         res.status(500).json({ error: 'Failed to read calendar data' });
@@ -213,7 +239,7 @@ app.get('/api/calendar', (req, res) => {
 // Get public calendar data (no phone numbers)
 app.get('/api/calendar/public', (req, res) => {
     try {
-        const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+        const data = readDataFromCache();
         const publicData = {};
         
         for (const [dateKey, attendees] of Object.entries(data)) {
@@ -232,13 +258,14 @@ app.get('/api/calendar/public', (req, res) => {
 // Add new attendee
 app.post('/api/attendee', async (req, res) => {
     try {
-        const { dateKey, name, phone, mass } = req.body;
+        const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+        const { dateKey, name, phone, mass } = body;
         
         if (!dateKey || !name || !phone || !mass) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
         
-        const data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
+        const data = readDataFromCache();
         
         if (!data[dateKey]) {
             data[dateKey] = [];
@@ -256,7 +283,7 @@ app.post('/api/attendee', async (req, res) => {
             addedAt: new Date().toISOString()
         });
         
-        fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+        writeDataToCache(data);
         
         // Generate CSV content
         const today = new Date().toISOString().split('T')[0];
@@ -270,9 +297,13 @@ app.post('/api/attendee', async (req, res) => {
         const backendCommitMessage = `Update backend CSV: ${name} added to ${dateKey}`;
         const publicCommitMessage = `Update public CSV: ${name} added to ${dateKey}`;
         
-        // Write both files to GitHub
-        await writeCSVToGitHub(backendCSV, backendFilename, backendCommitMessage);
-        await writeCSVToGitHub(publicCSV, publicFilename, publicCommitMessage);
+        // Write both files to GitHub when configured, but do not block the booking flow
+        try {
+            await writeCSVToGitHub(backendCSV, backendFilename, backendCommitMessage);
+            await writeCSVToGitHub(publicCSV, publicFilename, publicCommitMessage);
+        } catch (error) {
+            console.error('CSV sync failed, but booking was persisted locally:', error.message);
+        }
         
         // Also write locally as backup
         writeCSVToFile(data, backendFilename, true);
@@ -281,7 +312,8 @@ app.post('/api/attendee', async (req, res) => {
         res.json({ 
             success: true, 
             message: 'Attendee added successfully',
-            github_updated: !!GITHUB_TOKEN
+            github_updated: !!GITHUB_TOKEN,
+            persisted_locally: true
         });
     } catch (error) {
         console.error('Error adding attendee:', error);

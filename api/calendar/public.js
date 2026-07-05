@@ -1,9 +1,11 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const https = require('https');
 
-// Data file path - use /tmp for Vercel serverless functions
-const DATA_FILE = '/tmp/calendar-data.json';
+// Data file path - use a platform-safe temp location with a local fallback
+const DATA_FILE = path.join(os.tmpdir(), 'calendar-data.json');
+const FALLBACK_DATA_FILE = path.join(__dirname, '..', '..', 'calendar-data.json');
 
 // GitHub configuration
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;

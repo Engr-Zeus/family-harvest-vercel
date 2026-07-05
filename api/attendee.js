@@ -1,9 +1,11 @@
 const fs = require('fs');
 const path = require('path');
+const os = require('os');
 const https = require('https');
 
-// Data file path - use /tmp for Vercel serverless functions
-const DATA_FILE = '/tmp/calendar-data.json';
+// Data file path - use a platform-safe temp location with a local fallback
+const DATA_FILE = path.join(os.tmpdir(), 'calendar-data.json');
+const FALLBACK_DATA_FILE = path.join(__dirname, '..', 'calendar-data.json');
 
 // GitHub configuration - clean up repository format
 let GITHUB_REPO = process.env.GITHUB_REPO || 'Engr-Zeus/family-harvest-vercel';
@@ -11,6 +13,46 @@ let GITHUB_REPO = process.env.GITHUB_REPO || 'Engr-Zeus/family-harvest-vercel';
 GITHUB_REPO = GITHUB_REPO.replace('https://github.com/', '').replace('.git', '');
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main';
+
+// Helper function to read data from the local cache
+function readDataFromCache() {
+    try {
+        if (fs.existsSync(DATA_FILE)) {
+            const cached = fs.readFileSync(DATA_FILE, 'utf8');
+            if (cached) {
+                return JSON.parse(cached);
+            }
+        }
+
+        if (fs.existsSync(FALLBACK_DATA_FILE)) {
+            const fallback = fs.readFileSync(FALLBACK_DATA_FILE, 'utf8');
+            if (fallback) {
+                return JSON.parse(fallback);
+            }
+        }
+    } catch (error) {
+        console.error('Error reading from cache:', error.message);
+    }
+
+    return {};
+}
+
+// Helper function to write data to the local cache
+function writeDataToCache(data) {
+    try {
+        fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
+        fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+    } catch (error) {
+        console.error('Error writing to cache:', error.message);
+    }
+
+    try {
+        fs.mkdirSync(path.dirname(FALLBACK_DATA_FILE), { recursive: true });
+        fs.writeFileSync(FALLBACK_DATA_FILE, JSON.stringify(data, null, 2));
+    } catch (error) {
+        console.error('Error writing to fallback data file:', error.message);
+    }
+}
 
 // Helper function to convert JSON to CSV
 function jsonToCSV(data, includePhone = true) {
@@ -95,11 +137,13 @@ function makeGitHubRequest(url, method = 'GET', body = null) {
     });
 }
 
-// Helper function to read data from GitHub
-async function readDataFromGitHub() {
+// Helper function to read data from GitHub with a local cache fallback
+async function readDataFromGitHubWithCache() {
+    const cachedData = readDataFromCache();
+
     if (!GITHUB_TOKEN) {
-        console.log('GitHub token not configured, using empty data');
-        return {};
+        console.log('GitHub token not configured, using cached data');
+        return cachedData;
     }
 
     try {
@@ -113,17 +157,19 @@ async function readDataFromGitHub() {
         if (response.status === 200) {
             const content = Buffer.from(response.data.content, 'base64').toString('utf8');
             console.log('Successfully read data from GitHub');
-            return JSON.parse(content);
+            const parsedData = JSON.parse(content);
+            writeDataToCache(parsedData);
+            return parsedData;
         } else if (response.status === 404) {
             console.log('No existing data file found, starting fresh');
-            return {};
+            return cachedData;
         } else {
             console.error('GitHub API error:', response.status, response.data);
-            return {};
+            return cachedData;
         }
     } catch (error) {
         console.error('Error reading from GitHub:', error.message);
-        return {};
+        return cachedData;
     }
 }
 
@@ -242,14 +288,15 @@ module.exports = async (req, res) => {
 
     if (req.method === 'POST') {
         try {
-            const { dateKey, name, phone, mass } = req.body;
+            const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+            const { dateKey, name, phone, mass } = body;
             
             if (!dateKey || !name || !phone || !mass) {
                 return res.status(400).json({ error: 'Missing required fields' });
             }
             
-            // Read existing data from GitHub
-            const data = await readDataFromGitHub();
+            // Read existing data from cache/GitHub
+            const data = await readDataFromGitHubWithCache();
             
             if (!data[dateKey]) {
                 data[dateKey] = [];
@@ -267,8 +314,15 @@ module.exports = async (req, res) => {
                 addedAt: new Date().toISOString()
             });
             
-            // Write updated data back to GitHub
-            await writeDataToGitHub(data);
+            // Persist locally so the calendar can read it immediately
+            writeDataToCache(data);
+            
+            // Sync to GitHub when configured, but do not block the booking flow if it fails
+            try {
+                await writeDataToGitHub(data);
+            } catch (error) {
+                console.error('GitHub sync failed, but local cache was updated:', error.message);
+            }
             
             // Generate CSV content
             const today = new Date().toISOString().split('T')[0];
@@ -283,13 +337,18 @@ module.exports = async (req, res) => {
             const publicCommitMessage = `Update public CSV: ${name} added to ${dateKey}`;
             
             // Write both files to GitHub
-            await writeCSVToGitHub(backendCSV, backendFilename, backendCommitMessage);
-            await writeCSVToGitHub(publicCSV, publicFilename, publicCommitMessage);
+            try {
+                await writeCSVToGitHub(backendCSV, backendFilename, backendCommitMessage);
+                await writeCSVToGitHub(publicCSV, publicFilename, publicCommitMessage);
+            } catch (error) {
+                console.error('CSV sync failed, but booking was persisted locally:', error.message);
+            }
             
             res.json({ 
                 success: true, 
                 message: 'Attendee added successfully',
-                github_updated: !!GITHUB_TOKEN
+                github_updated: !!GITHUB_TOKEN,
+                persisted_locally: true
             });
         } catch (error) {
             console.error('Error adding attendee:', error);

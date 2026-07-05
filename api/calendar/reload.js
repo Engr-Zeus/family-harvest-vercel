@@ -1,11 +1,14 @@
 const fs = require('fs');
+const path = require('path');
+const os = require('os');
 const https = require('https');
 
 let GITHUB_REPO = process.env.GITHUB_REPO || 'Engr-Zeus/family-harvest-vercel';
 GITHUB_REPO = GITHUB_REPO.replace('https://github.com/', '').replace('.git', '');
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main';
-const DATA_FILE = '/tmp/calendar-data.json';
+const DATA_FILE = path.join(os.tmpdir(), 'calendar-data.json');
+const FALLBACK_DATA_FILE = path.join(__dirname, '..', '..', 'calendar-data.json');
 
 function makeGitHubRequest(url, method = 'GET', body = null) {
     return new Promise((resolve, reject) => {
@@ -49,6 +52,11 @@ module.exports = async (req, res) => {
         if (response.status === 200) {
             const content = Buffer.from(response.data.content, 'base64').toString('utf8');
             fs.writeFileSync(DATA_FILE, content, 'utf8');
+            try {
+                fs.writeFileSync(FALLBACK_DATA_FILE, content, 'utf8');
+            } catch (error) {
+                console.error('Error writing fallback data file:', error.message);
+            }
             res.json({ success: true, message: 'Cache reloaded from GitHub', data: JSON.parse(content) });
         } else {
             res.status(500).json({ error: 'Failed to fetch from GitHub', details: response.data });
