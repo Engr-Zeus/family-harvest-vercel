@@ -365,10 +365,15 @@ module.exports = async (req, res) => {
             // Persist locally so the calendar can read it immediately
             writeDataToCache(data);
             
+            let githubUpdated = false;
+            let githubSyncError = null;
+            let csvSyncError = null;
+
             // Sync to GitHub when configured, but do not block the booking flow if it fails
             try {
-                await writeDataToGitHub(data);
+                githubUpdated = await writeDataToGitHub(data);
             } catch (error) {
+                githubSyncError = error.message;
                 console.error('GitHub sync failed, but local cache was updated:', error.message);
             }
             
@@ -389,14 +394,18 @@ module.exports = async (req, res) => {
                 await writeCSVToGitHub(backendCSV, backendFilename, backendCommitMessage);
                 await writeCSVToGitHub(publicCSV, publicFilename, publicCommitMessage);
             } catch (error) {
+                csvSyncError = error.message;
                 console.error('CSV sync failed, but booking was persisted locally:', error.message);
             }
             
             res.json({ 
                 success: true, 
                 message: 'Attendee added successfully',
-                github_updated: !!GITHUB_TOKEN,
-                persisted_locally: true
+                github_updated: githubUpdated,
+                persisted_locally: true,
+                data,
+                github_sync_error: githubSyncError,
+                csv_sync_error: csvSyncError
             });
         } catch (error) {
             console.error('Error adding attendee:', error);

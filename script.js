@@ -220,8 +220,22 @@ class ThanksgivingCalendar {
             const result = await response.json();
             console.log('Backend success response:', result);
             
-            // On success, fetch updated data and update UI
-            await this.fetchCalendarData();
+            // Use the returned data immediately so the booking is visible right away.
+            if (result && result.data && typeof result.data === 'object' && !Array.isArray(result.data)) {
+                this.calendarData = result.data;
+            } else {
+                if (!this.calendarData[dateKey]) {
+                    this.calendarData[dateKey] = [];
+                }
+                this.calendarData[dateKey].push({
+                    name,
+                    phone,
+                    mass,
+                    addedAt: new Date().toISOString()
+                });
+            }
+
+            this.saveCalendarData();
             this.generateCalendar();
             this.closeModal();
             this.showSuccessMessage(name, dateKey);
