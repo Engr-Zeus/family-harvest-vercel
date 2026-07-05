@@ -70,6 +70,152 @@ function makeGitHubRequest(url, method = 'GET', body = null) {
     });
 }
 
+function parseCsvLine(line) {
+    const values = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i += 1) {
+        const char = line[i];
+
+        if (char === '"') {
+            if (inQuotes && line[i + 1] === '"') {
+                current += '"';
+                i += 1;
+            } else {
+                inQuotes = !inQuotes;
+            }
+        } else if (char === ',' && !inQuotes) {
+            values.push(current.trim());
+            current = '';
+        } else {
+            current += char;
+        }
+    }
+
+    values.push(current.trim());
+    return values;
+}
+
+function deriveDateKey(dateText) {
+    if (!dateText) {
+        return null;
+    }
+
+    const parsed = new Date(dateText);
+    if (!Number.isNaN(parsed.getTime())) {
+        return parsed.toISOString().split('T')[0];
+    }
+
+    return null;
+}
+
+function parseCsvToCalendarData(csvContent) {
+    const rows = csvContent
+        .split(/\r?\n/)
+        .map(row => row.trim())
+        .filter(Boolean);
+
+    if (rows.length < 2) {
+        return {};
+    }
+
+    const headers = parseCsvLine(rows[0]).map(header => header.toLowerCase());
+    const headerMap = {};
+    headers.forEach((header, index) => {
+        headerMap[header] = index;
+    });
+
+    const data = {};
+
+    rows.slice(1).forEach((row) => {
+        const values = parseCsvLine(row);
+        if (!values || values.length < 2) {
+            return;
+        }
+
+        const dateKey = headerMap.datekey
+            ? values[headerMap.datekey] || null
+            : null;
+        const dateText = headerMap.date
+            ? values[headerMap.date]
+            : values[0];
+        const resolvedDateKey = dateKey || deriveDateKey(dateText) || null;
+        const name = values[headerMap.name || 1] || '';
+        const phone = headerMap.phone ? values[headerMap.phone] || '' : '';
+        const mass = headerMap.mass ? values[headerMap.mass] || '' : values[headerMap.name ? 2 : 2] || '';
+        const addedAt = headerMap.addedat ? values[headerMap.addedat] || '' : '';
+
+        if (!resolvedDateKey || !name) {
+            return;
+        }
+
+        if (!data[resolvedDateKey]) {
+            data[resolvedDateKey] = [];
+        }
+
+        data[resolvedDateKey].push({
+            name,
+            phone,
+            mass,
+            addedAt
+        });
+    });
+
+    return data;
+}
+
+async function readLatestCsvFromGitHub() {
+    if (!GITHUB_REPO) {
+        return null;
+    }
+
+    try {
+        console.log('Looking for the latest CSV in GitHub repository:', GITHUB_REPO);
+        const listUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents`;
+        const listResponse = await makeGitHubRequest(listUrl, 'GET');
+
+        if (listResponse.status !== 200) {
+            console.error('Failed to list repository contents:', listResponse.status, listResponse.data);
+            return null;
+        }
+
+        const files = Array.isArray(listResponse.data) ? listResponse.data : [];
+        const csvFiles = files
+            .filter(file => file && file.type === 'file' && /thanksgiving-calendar-(public|backend)-\d{4}-\d{2}-\d{2}\.csv$/i.test(file.name))
+            .sort((a, b) => b.name.localeCompare(a.name));
+
+        if (csvFiles.length === 0) {
+            console.log('No CSV export files found in GitHub repository');
+            return null;
+        }
+
+        for (const file of csvFiles) {
+            const fileUrl = `https://api.github.com/repos/${GITHUB_REPO}/contents/${encodeURIComponent(file.name)}`;
+            const fileResponse = await makeGitHubRequest(fileUrl, 'GET');
+
+            if (fileResponse.status === 200) {
+                const content = typeof fileResponse.data === 'string'
+                    ? fileResponse.data
+                    : (fileResponse.data && fileResponse.data.content
+                        ? Buffer.from(fileResponse.data.content, 'base64').toString('utf8')
+                        : '');
+
+                const parsedData = parseCsvToCalendarData(content);
+                if (Object.keys(parsedData).length > 0) {
+                    console.log('Successfully parsed calendar data from GitHub CSV:', file.name);
+                    fs.writeFileSync(PROJECT_DATA_FILE, JSON.stringify(parsedData, null, 2), 'utf8');
+                    return parsedData;
+                }
+            }
+        }
+    } catch (error) {
+        console.error('Error reading latest CSV from GitHub:', error.message);
+    }
+
+    return null;
+}
+
 // Helper function to read data from cache
 function readDataFromCache() {
     const candidates = [PROJECT_DATA_FILE, FALLBACK_DATA_FILE, TMP_DATA_FILE];
@@ -90,37 +236,17 @@ function readDataFromCache() {
 
 // Helper function to read data from GitHub
 async function readDataFromGitHubWithCache() {
-    if (!GITHUB_TOKEN) {
-        console.log('GitHub token not configured, using cache or empty data');
-        return readDataFromCache();
-    }
     try {
-        console.log('Reading data from GitHub repository:', GITHUB_REPO);
-        const url = `https://api.github.com/repos/${GITHUB_REPO}/contents/calendar-data.json`;
-        console.log('GitHub API URL:', url);
-        const response = await makeGitHubRequest(url, 'GET');
-        console.log('GitHub API response status:', response.status);
-        if (response.status === 200) {
-            const content = Buffer.from(response.data.content, 'base64').toString('utf8');
-            console.log('Successfully read data from GitHub');
-            // Update cache
-            try {
-                fs.writeFileSync(DATA_FILE, content, 'utf8');
-            } catch (err) {
-                console.error('Error writing to cache:', err.message);
-            }
-            return JSON.parse(content);
-        } else if (response.status === 404) {
-            console.log('No existing data file found, starting fresh');
-            return {};
-        } else {
-            console.error('GitHub API error:', response.status, response.data);
-            // Try cache
-            return readDataFromCache();
+        console.log('Reading calendar data from the latest GitHub CSV export');
+        const csvData = await readLatestCsvFromGitHub();
+        if (csvData) {
+            return csvData;
         }
+
+        console.log('No GitHub CSV data found, falling back to cache');
+        return readDataFromCache();
     } catch (error) {
         console.error('Error reading from GitHub:', error.message);
-        // Try cache
         return readDataFromCache();
     }
 }
