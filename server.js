@@ -216,12 +216,22 @@ function makeGitHubRequest(url, method = 'GET', body = null) {
     });
 }
 
-// Helper function to write CSV to file (local backup)
+// Helper function to write CSV to file (local backup and repository export)
 function writeCSVToFile(data, filename, includePhone = true) {
     const csvContent = jsonToCSV(data, includePhone);
-    const filePath = path.join(__dirname, filename);
-    fs.writeFileSync(filePath, csvContent);
-    return filePath;
+    const repoFilePath = path.join(__dirname, filename);
+    const publicFilePath = path.join(__dirname, 'public', filename);
+
+    fs.writeFileSync(repoFilePath, csvContent);
+
+    try {
+        fs.mkdirSync(path.dirname(publicFilePath), { recursive: true });
+        fs.writeFileSync(publicFilePath, csvContent);
+    } catch (error) {
+        console.error('Error writing public CSV copy:', error.message);
+    }
+
+    return repoFilePath;
 }
 
 // Routes
