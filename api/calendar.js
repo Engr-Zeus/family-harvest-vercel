@@ -5,6 +5,7 @@ const https = require('https');
 
 // Data file path - use a platform-safe temp location with a local fallback
 const DATA_FILE = path.join(os.tmpdir(), 'calendar-data.json');
+const FALLBACK_DATA_FILE = path.join(__dirname, '..', 'calendar-data.json');
 
 // GitHub configuration - clean up repository format
 let GITHUB_REPO = process.env.GITHUB_REPO || 'Engr-Zeus/family-harvest-vercel';
@@ -69,6 +70,11 @@ function readDataFromCache() {
     try {
         if (fs.existsSync(DATA_FILE)) {
             const cached = fs.readFileSync(DATA_FILE, 'utf8');
+            return JSON.parse(cached);
+        }
+
+        if (fs.existsSync(FALLBACK_DATA_FILE)) {
+            const cached = fs.readFileSync(FALLBACK_DATA_FILE, 'utf8');
             return JSON.parse(cached);
         }
     } catch (err) {

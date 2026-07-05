@@ -63,11 +63,29 @@ function makeGitHubRequest(url, method = 'GET', body = null) {
     });
 }
 
+function readDataFromCache() {
+    try {
+        if (fs.existsSync(DATA_FILE)) {
+            const cached = fs.readFileSync(DATA_FILE, 'utf8');
+            return JSON.parse(cached);
+        }
+
+        if (fs.existsSync(FALLBACK_DATA_FILE)) {
+            const cached = fs.readFileSync(FALLBACK_DATA_FILE, 'utf8');
+            return JSON.parse(cached);
+        }
+    } catch (error) {
+        console.error('Error reading from cache:', error.message);
+    }
+
+    return {};
+}
+
 // Helper function to read data from GitHub
 async function readDataFromGitHub() {
     if (!GITHUB_TOKEN) {
-        console.log('GitHub token not configured, using empty data');
-        return {};
+        console.log('GitHub token not configured, using cached data');
+        return readDataFromCache();
     }
 
     try {
@@ -79,11 +97,11 @@ async function readDataFromGitHub() {
             return JSON.parse(content);
         } else {
             console.log('No existing data file found, starting fresh');
-            return {};
+            return readDataFromCache();
         }
     } catch (error) {
         console.error('Error reading from GitHub:', error.message);
-        return {};
+        return readDataFromCache();
     }
 }
 
