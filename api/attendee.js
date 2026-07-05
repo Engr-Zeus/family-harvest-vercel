@@ -18,6 +18,27 @@ GITHUB_REPO = GITHUB_REPO
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main';
 
+// Helper function to read the raw request body from Vercel/serverless requests
+function getRequestBody(req) {
+    if (req.body !== undefined) {
+        return Promise.resolve(req.body);
+    }
+
+    if (req.rawBody !== undefined) {
+        return Promise.resolve(req.rawBody);
+    }
+
+    return new Promise((resolve, reject) => {
+        let data = '';
+        req.setEncoding('utf8');
+        req.on('data', (chunk) => {
+            data += chunk;
+        });
+        req.on('end', () => resolve(data));
+        req.on('error', reject);
+    });
+}
+
 // Helper function to read data from the local cache
 function readDataFromCache() {
     try {
@@ -292,13 +313,24 @@ module.exports = async (req, res) => {
 
     if (req.method === 'POST') {
         try {
-            let body = req.body || {};
+            const rawBody = await getRequestBody(req);
+            let body = rawBody || {};
+
+            if (Buffer.isBuffer(body)) {
+                body = body.toString('utf8');
+            }
+
             if (typeof body === 'string') {
-                try {
-                    body = JSON.parse(body);
-                } catch (error) {
-                    const parsed = new URLSearchParams(body);
-                    body = Object.fromEntries(parsed.entries());
+                const trimmed = body.trim();
+                if (!trimmed) {
+                    body = {};
+                } else {
+                    try {
+                        body = JSON.parse(trimmed);
+                    } catch (error) {
+                        const parsed = new URLSearchParams(trimmed);
+                        body = Object.fromEntries(parsed.entries());
+                    }
                 }
             }
 
