@@ -34,7 +34,8 @@ app.use((req, res, next) => {
 });
 
 // Data file path
-const DATA_FILE = 'calendar-data.json';
+const DATA_FILE = path.join(__dirname, 'calendar-data.json');
+const TMP_DATA_FILE = path.join(os.tmpdir(), 'calendar-data.json');
 
 // GitHub configuration
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
@@ -45,18 +46,25 @@ const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main';
 if (!fs.existsSync(DATA_FILE)) {
     fs.writeFileSync(DATA_FILE, JSON.stringify({}));
 }
+if (!fs.existsSync(TMP_DATA_FILE)) {
+    fs.writeFileSync(TMP_DATA_FILE, JSON.stringify({}));
+}
 
 // Helper function to read data from the local data file
 function readDataFromCache() {
-    try {
-        if (fs.existsSync(DATA_FILE)) {
-            const cached = fs.readFileSync(DATA_FILE, 'utf8');
-            if (cached) {
-                return JSON.parse(cached);
+    const candidates = [DATA_FILE, TMP_DATA_FILE];
+
+    for (const filePath of candidates) {
+        try {
+            if (fs.existsSync(filePath)) {
+                const cached = fs.readFileSync(filePath, 'utf8');
+                if (cached) {
+                    return JSON.parse(cached);
+                }
             }
+        } catch (error) {
+            console.error('Error reading from cache:', error.message);
         }
-    } catch (error) {
-        console.error('Error reading from cache:', error.message);
     }
 
     return {};
@@ -64,11 +72,16 @@ function readDataFromCache() {
 
 // Helper function to write data to the local data file
 function writeDataToCache(data) {
-    try {
-        fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
-        fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-    } catch (error) {
-        console.error('Error writing to cache:', error.message);
+    const serializedData = JSON.stringify(data, null, 2);
+    const candidates = [DATA_FILE, TMP_DATA_FILE];
+
+    for (const filePath of candidates) {
+        try {
+            fs.mkdirSync(path.dirname(filePath), { recursive: true });
+            fs.writeFileSync(filePath, serializedData);
+        } catch (error) {
+            console.error('Error writing to cache:', error.message);
+        }
     }
 }
 

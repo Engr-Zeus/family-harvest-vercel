@@ -3,8 +3,9 @@ const path = require('path');
 const os = require('os');
 const https = require('https');
 
-// Data file path - use a platform-safe temp location with a local fallback
-const DATA_FILE = path.join(os.tmpdir(), 'calendar-data.json');
+// Data file paths - prefer a shared project-level file so bookings are visible across devices
+const PROJECT_DATA_FILE = path.join(process.cwd(), 'calendar-data.json');
+const TMP_DATA_FILE = path.join(os.tmpdir(), 'calendar-data.json');
 const FALLBACK_DATA_FILE = path.join(__dirname, '..', 'calendar-data.json');
 
 // GitHub configuration - clean up repository format
@@ -41,22 +42,19 @@ function getRequestBody(req) {
 
 // Helper function to read data from the local cache
 function readDataFromCache() {
-    try {
-        if (fs.existsSync(DATA_FILE)) {
-            const cached = fs.readFileSync(DATA_FILE, 'utf8');
-            if (cached) {
-                return JSON.parse(cached);
-            }
-        }
+    const candidates = [PROJECT_DATA_FILE, FALLBACK_DATA_FILE, TMP_DATA_FILE];
 
-        if (fs.existsSync(FALLBACK_DATA_FILE)) {
-            const fallback = fs.readFileSync(FALLBACK_DATA_FILE, 'utf8');
-            if (fallback) {
-                return JSON.parse(fallback);
+    for (const filePath of candidates) {
+        try {
+            if (fs.existsSync(filePath)) {
+                const cached = fs.readFileSync(filePath, 'utf8');
+                if (cached) {
+                    return JSON.parse(cached);
+                }
             }
+        } catch (error) {
+            console.error('Error reading from cache:', error.message);
         }
-    } catch (error) {
-        console.error('Error reading from cache:', error.message);
     }
 
     return {};
@@ -64,18 +62,16 @@ function readDataFromCache() {
 
 // Helper function to write data to the local cache
 function writeDataToCache(data) {
-    try {
-        fs.mkdirSync(path.dirname(DATA_FILE), { recursive: true });
-        fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
-    } catch (error) {
-        console.error('Error writing to cache:', error.message);
-    }
+    const serializedData = JSON.stringify(data, null, 2);
+    const candidates = [PROJECT_DATA_FILE, FALLBACK_DATA_FILE, TMP_DATA_FILE];
 
-    try {
-        fs.mkdirSync(path.dirname(FALLBACK_DATA_FILE), { recursive: true });
-        fs.writeFileSync(FALLBACK_DATA_FILE, JSON.stringify(data, null, 2));
-    } catch (error) {
-        console.error('Error writing to fallback data file:', error.message);
+    for (const filePath of candidates) {
+        try {
+            fs.mkdirSync(path.dirname(filePath), { recursive: true });
+            fs.writeFileSync(filePath, serializedData);
+        } catch (error) {
+            console.error('Error writing to cache file:', filePath, error.message);
+        }
     }
 }
 

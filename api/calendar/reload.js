@@ -11,7 +11,8 @@ GITHUB_REPO = GITHUB_REPO
     .replace(/^\//, '');
 const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
 const GITHUB_BRANCH = process.env.GITHUB_BRANCH || 'main';
-const DATA_FILE = path.join(os.tmpdir(), 'calendar-data.json');
+const PROJECT_DATA_FILE = path.join(process.cwd(), 'calendar-data.json');
+const TMP_DATA_FILE = path.join(os.tmpdir(), 'calendar-data.json');
 const FALLBACK_DATA_FILE = path.join(__dirname, '..', '..', 'calendar-data.json');
 
 function makeGitHubRequest(url, method = 'GET', body = null) {
@@ -55,11 +56,14 @@ module.exports = async (req, res) => {
         const response = await makeGitHubRequest(url, 'GET');
         if (response.status === 200) {
             const content = Buffer.from(response.data.content, 'base64').toString('utf8');
-            fs.writeFileSync(DATA_FILE, content, 'utf8');
-            try {
-                fs.writeFileSync(FALLBACK_DATA_FILE, content, 'utf8');
-            } catch (error) {
-                console.error('Error writing fallback data file:', error.message);
+            const candidates = [PROJECT_DATA_FILE, FALLBACK_DATA_FILE, TMP_DATA_FILE];
+            for (const filePath of candidates) {
+                try {
+                    fs.mkdirSync(path.dirname(filePath), { recursive: true });
+                    fs.writeFileSync(filePath, content, 'utf8');
+                } catch (error) {
+                    console.error('Error writing data file:', filePath, error.message);
+                }
             }
             res.json({ success: true, message: 'Cache reloaded from GitHub', data: JSON.parse(content) });
         } else {

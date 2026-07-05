@@ -2,8 +2,9 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-// Data file path - use a platform-safe temp location with a local fallback
-const DATA_FILE = path.join(os.tmpdir(), 'calendar-data.json');
+// Data file paths - prefer a shared project-level file so bookings are visible across devices
+const PROJECT_DATA_FILE = path.join(process.cwd(), 'calendar-data.json');
+const TMP_DATA_FILE = path.join(os.tmpdir(), 'calendar-data.json');
 const FALLBACK_DATA_FILE = path.join(__dirname, '..', '..', 'calendar-data.json');
 
 module.exports = async (req, res) => {
@@ -22,10 +23,12 @@ module.exports = async (req, res) => {
         try {
             const { dateKey } = req.query;
             let data = {};
-            if (fs.existsSync(DATA_FILE)) {
-                data = JSON.parse(fs.readFileSync(DATA_FILE, 'utf8'));
-            } else if (fs.existsSync(FALLBACK_DATA_FILE)) {
-                data = JSON.parse(fs.readFileSync(FALLBACK_DATA_FILE, 'utf8'));
+            const candidates = [PROJECT_DATA_FILE, FALLBACK_DATA_FILE, TMP_DATA_FILE];
+            for (const filePath of candidates) {
+                if (fs.existsSync(filePath)) {
+                    data = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+                    break;
+                }
             }
             
             const attendees = data[dateKey] || [];
