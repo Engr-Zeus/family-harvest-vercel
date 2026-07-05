@@ -288,7 +288,16 @@ module.exports = async (req, res) => {
 
     if (req.method === 'POST') {
         try {
-            const body = typeof req.body === 'string' ? JSON.parse(req.body) : (req.body || {});
+            let body = req.body || {};
+            if (typeof body === 'string') {
+                try {
+                    body = JSON.parse(body);
+                } catch (error) {
+                    const parsed = new URLSearchParams(body);
+                    body = Object.fromEntries(parsed.entries());
+                }
+            }
+
             const { dateKey, name, phone, mass } = body;
             
             if (!dateKey || !name || !phone || !mass) {
@@ -297,6 +306,9 @@ module.exports = async (req, res) => {
             
             // Read existing data from cache/GitHub
             const data = await readDataFromGitHubWithCache();
+            if (!data || typeof data !== 'object' || Array.isArray(data)) {
+                data = {};
+            }
             
             if (!data[dateKey]) {
                 data[dateKey] = [];
